@@ -8,36 +8,71 @@ namespace MyExtensions;
 
 public static class NumberExtensions
 {
+    /// <summary>
+    /// Converts a string to an integer. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static int? ToInt(this string text)
     {
         return text.AsSpan().ToInt();
     }
 
+    /// <summary>
+    /// Converts a char to an integer. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static int? ToInt(this char text)
     {
         return text.ToInt();
     }
 
+    /// <summary>
+    /// Converts a ReadOnlySpan<char> to an integer. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static int? ToInt(this ReadOnlySpan<char> text)
     {
         return (int.TryParse(text, out int result)) ? result : null;
     }
 
+    /// <summary>
+    /// Converts a ReadOnlySpan<uint> to an integer. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static uint? ToUint(this string text)
     {
         return text.AsSpan().ToUint();
     }
 
+    /// <summary>
+    /// Converts a char to an unsigned integer. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static uint? ToUint(this char text)
     {
         return text.ToUint();
     }
 
+    /// <summary>
+    /// Converts a ReadOnlySpan<char> to an unsigned integer. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static uint? ToUint(this ReadOnlySpan<char> text)
     {
         return (uint.TryParse(text, out uint result)) ? result : null;
     }
 
+    /// <summary>
+    /// Converts a ReadOnlySpan<uint> to an unsigned integer. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="numbers"></param>
+    /// <returns></returns>
     public static uint? ToUint(this ReadOnlySpan<uint> numbers)
     {
         if (numbers.Length == 0 || numbers.Length > 10) return null;
@@ -53,38 +88,71 @@ public static class NumberExtensions
         return result;
     }
 
-
+    /// <summary>
+    /// Converts a string to a long. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static long? ToLong(this string text)
     {
         return text.AsSpan().ToLong();
     }
 
+    /// <summary>
+    /// Converts a char to a long. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static long? ToLong(this char text)
     {
         return text.ToLong();
     }
 
+    /// <summary>
+    /// Converts a ReadOnlySpan<char> to a long. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static long? ToLong(this ReadOnlySpan<char> text)
     {
         return (long.TryParse(text, out long result)) ? result : null;
     }
 
-
+    /// <summary>
+    /// Converts a ReadOnlySpan<uint> to a long. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static ulong? ToUlong(this string text)
     {
         return text.AsSpan().ToUlong();
     }
 
+    /// <summary>
+    /// Converts a char to an unsigned long. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static ulong? ToUlong(this char text)
     {
         return text.ToUlong();
     }
 
+    /// <summary>
+    /// Converts a ReadOnlySpan<char> to an unsigned long. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
     public static ulong? ToUlong(this ReadOnlySpan<char> text)
     {
         return (ulong.TryParse(text, out ulong result)) ? result : null;
     }
 
+    /// <summary>
+    /// Converts a ReadOnlySpan<uint> to an unsigned long. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="numbers"></param>
+    /// <returns></returns>
     public static ulong? ToUlong(this ReadOnlySpan<uint> numbers)
     {
         if (numbers.Length == 0 || numbers.Length > 20) return null;
@@ -100,36 +168,50 @@ public static class NumberExtensions
         return result;
     }
 
-
+    /// <summary>
+    /// Return the individual digits of a number.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="numDigits"></param>
+    /// <returns></returns>
     public static ReadOnlySpan<uint> GetDigits(this int source, int numDigits = 0)
     {
-        Span<uint> _ints = new uint[
-            (numDigits == 0)
-            ? (uint)Math.Floor(Math.Log10(source) + 1)
-            : numDigits
-            ];
-
-        for (int i = _ints.Length - 1; i > 0; i--)
-        {
-            _ints[i] = (uint)(source % 10);
-            source /= 10;
-        }
-
-        return _ints;
+        return GetDigits(source < 0 ? (uint)-source : (uint)source, numDigits);
     }
 
+    /// <summary>
+    /// Return the individual digits of a number.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="numDigits"></param>
+    /// <returns></returns>
     public static ReadOnlySpan<uint> GetDigits(this int? source, int numDigits = 0)
     {
         return GetDigits(source ?? 0, numDigits);
     }
 
+    /// <summary>
+    /// Return the individual digits of a number.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="numDigits"></param>
+    /// <returns></returns>
     public static ReadOnlySpan<uint> GetDigits(this uint source, int numDigits = 0)
     {
-        Span<uint> _ints = new uint[
-            (numDigits == 0)
-            ? (uint)Math.Floor(Math.Log10(source) + 1)
-            : numDigits
-            ];
+        if (source == 0 && numDigits == 0)
+            return [0];
+
+        if (numDigits == 0)
+        {
+            uint temp = source;
+            while (temp != 0)
+            {
+                numDigits++;
+                temp /= 10;
+            }
+        }
+
+        Span<uint> _ints = new uint[numDigits];
 
         for (int i = _ints.Length - 1; i > 0; i--)
         {
@@ -140,18 +222,39 @@ public static class NumberExtensions
         return _ints;
     }
 
+    /// <summary>
+    /// Return the individual digits of a number.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="numDigits"></param>
+    /// <returns></returns>
     public static ReadOnlySpan<uint> GetDigits(this uint? source, int numDigits = 0)
     {
         return GetDigits(source ?? 0, numDigits);
     }
 
+    /// <summary>
+    /// Return the individual digits of a number.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="numDigits"></param>
+    /// <returns></returns>
     public static ReadOnlySpan<uint> GetDigits(this ulong source, int numDigits = 0)
     {
-        Span<uint> _ints = new uint[
-            (numDigits == 0)
-            ? (uint)Math.Floor(Math.Log10(source) + 1)
-            : numDigits
-            ];
+        if (source == 0 && numDigits == 0)
+            return [0];
+
+        if (numDigits == 0)
+        {
+            ulong temp = source;
+            while (temp != 0)
+            {
+                numDigits++;
+                temp /= 10;
+            }
+        }
+
+        Span<uint> _ints = new uint[numDigits];
 
         for (int i = _ints.Length - 1; i > 0; i--)
         {
@@ -162,14 +265,26 @@ public static class NumberExtensions
         return _ints;
     }
 
+    /// <summary>
+    /// Return the individual digits of a number.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="numDigits"></param>
+    /// <returns></returns>
     public static ReadOnlySpan<uint> GetDigits(this ulong? source, int numDigits = 0)
     {
         return GetDigits(source ?? 0, numDigits);
     }
 
+    /// <summary>
+    /// Return the individual digits of a string.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <returns></returns>
     public static ReadOnlySpan<uint> GetDigits(this ReadOnlySpan<char> source)
     {
-        Span<uint> buffer = stackalloc uint[source.Length];
+        Span<uint> buffer = new uint[source.Length];
+
         int index = 0;
 
         foreach (char c in source)
@@ -180,9 +295,6 @@ public static class NumberExtensions
             }
         }
 
-        Span<uint> result = new uint[index];
-        buffer.Slice(0, index).CopyTo(result);
-
-        return result;
+        return buffer.Slice(0, index);
     }
 }
