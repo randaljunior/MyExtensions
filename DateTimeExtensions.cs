@@ -43,28 +43,33 @@ namespace MyExtensions
         /// <returns></returns>
         public static DateTime LastDayOfMonth(this DateTime value)
         {
-            var date = value.AddMonths(1);
-            return new DateTime(date.Year, date.Month, 1).AddDays(-1);
+            return new DateTime(value.Year, value.Month, DateTime.DaysInMonth(value.Year, value.Month));
         }
 
         /// <summary>
         /// Calculate the percentage of the month between two DateTime values.
         /// </summary>
-        /// <param name="value"></param>
+        /// <param name="firstDate"></param>
         /// <param name="nextDate"></param>
         /// <returns></returns>
-        public static decimal MonthPercentage(this DateTime value, DateTime nextDate)
+        public static decimal MonthPercentage(this DateTime firstDate, DateTime nextDate)
         {
             DateTime FirstValue, LastValue;
 
-            if (value <= nextDate) (FirstValue, LastValue) = (value, nextDate);
-            else (FirstValue, LastValue) = (nextDate, value);
+            if (firstDate <= nextDate)
+                (FirstValue, LastValue) = (firstDate, nextDate);
+            else
+                (FirstValue, LastValue) = (nextDate, firstDate);
 
-            DateTime FirstValueLD = FirstValue.LastDayOfMonth();
-            decimal PercToEndMonthBegin = (decimal)(FirstValueLD - FirstValue).TotalDays/FirstValueLD.Day;
+            //DateTime FirstValueLD = FirstValue.LastDayOfMonth();
+            //decimal PercToEndMonthBegin = (decimal)(FirstValueLD - FirstValue).TotalDays/FirstValueLD.Day;
+            int FirstValueLD = DateTime.DaysInMonth(FirstValue.Year, FirstValue.Month);
+            decimal PercToEndMonthBegin = (decimal)(FirstValueLD - FirstValue.Day) / FirstValueLD;
 
-            DateTime LastValueLD = LastValue.LastDayOfMonth();
-            decimal PercToEndMonthEnd = (decimal)(LastValueLD - LastValue).TotalDays/ LastValueLD.Day;
+            //DateTime LastValueLD = LastValue.LastDayOfMonth();
+            //decimal PercToEndMonthEnd = (decimal)(LastValueLD - LastValue).TotalDays/ LastValueLD.Day;
+            int LastValueLD = DateTime.DaysInMonth(LastValue.Year, LastValue.Month);
+            decimal PercToEndMonthEnd = (decimal)(LastValueLD - LastValue.Day) / LastValueLD;
 
             int months = (LastValue.Month - FirstValue.Month) + (LastValue.Year - FirstValue.Year) * 12;
 
@@ -79,7 +84,8 @@ namespace MyExtensions
         /// <returns></returns>
         public static DateTime DayOfMonth(this DateTime dateTime, int Day)
         {
-            int _lastDay = dateTime.LastDayOfMonth().Day;
+            //int _lastDay = dateTime.LastDayOfMonth().Day;
+            int _lastDay = DateTime.DaysInMonth(dateTime.Year, dateTime.Month);
 
             return new DateTime(dateTime.Year, dateTime.Month, (Day > _lastDay) ? _lastDay : Day);
         }
@@ -90,17 +96,35 @@ namespace MyExtensions
         /// <param name="dateOnly"></param>
         /// <param name="feriadosBancarios">List of Bank Holydays as not working days.</param>
         /// <returns></returns>
-        public static DateOnly? NextWeekDay(this DateOnly? dateOnly, List<DateOnly>? feriadosBancarios = null)
+        public static DateOnly? NextWeekDay(this DateOnly? dateOnly, HashSet<DateOnly>? feriadosBancarios = null)
         {
-            if (dateOnly is null) return null;
+            if (!dateOnly.HasValue) return null;
 
-            while (
-                dateOnly?.DayOfWeek == DayOfWeek.Saturday
-                || dateOnly?.DayOfWeek == DayOfWeek.Sunday
-                || (feriadosBancarios is not null && feriadosBancarios.Contains(dateOnly!.Value)))
-            {
-                dateOnly = dateOnly?.AddDays(1);
-            }
+            DateOnly result = dateOnly.Value;
+
+            while (true)
+                {
+                    // Verifica se é fim de semana usando um switch para lidar com os dois casos de forma direta.
+                    switch (result.DayOfWeek)
+                    {
+                        case DayOfWeek.Saturday:
+                            result = result.AddDays(2); // Sábado pula para segunda-feira.
+                            continue;
+                        case DayOfWeek.Sunday:
+                            result = result.AddDays(1); // Domingo pula para segunda-feira.
+                            continue;
+                    }
+
+                    // Se houver feriado declarado para essa data, incrementa um dia.
+                    if (feriadosBancarios is not null && feriadosBancarios.Contains(result))
+                    {
+                        result = result.AddDays(1);
+                        continue;
+                    }
+
+                    // Se não for fim de semana nem feriado, sai do loop.
+                    break;
+                }
 
             return dateOnly;
         }
@@ -111,27 +135,72 @@ namespace MyExtensions
         /// <param name="dateOnly"></param>
         /// <param name="feriadosBancarios">List of Bank Holydays as not working days.</param>
         /// <returns></returns>
-        public static DateOnly NextWeekDay(this DateOnly dateOnly, List<DateOnly>? feriadosBancarios = null)
+        public static DateOnly? NextWeekDay(this DateOnly? dateOnly, IList<DateOnly>? feriadosBancarios = null)
+        {
+            return NextWeekDay(dateOnly, feriadosBancarios?.ToHashSet()) ?? dateOnly;
+        }
+
+        /// <summary>
+        /// Get the next weekday for a given DateTime.
+        /// </summary>
+        /// <param name="dateOnly"></param>
+        /// <param name="feriadosBancarios">List of Bank Holydays as not working days.</param>
+        /// <returns></returns>
+        public static DateOnly NextWeekDay(this DateOnly dateOnly, HashSet<DateOnly>? feriadosBancarios = null)
         {
             return NextWeekDay((DateOnly?)dateOnly, feriadosBancarios) ?? dateOnly;
+        }
+
+        /// <summary>
+        /// Get the next weekday for a given DateTime.
+        /// </summary>
+        /// <param name="dateOnly"></param>
+        /// <param name="feriadosBancarios">List of Bank Holydays as not working days.</param>
+        /// <returns></returns>
+        public static DateOnly NextWeekDay(this DateOnly dateOnly, IList<DateOnly>? feriadosBancarios = null)
+        {
+            return NextWeekDay((DateOnly?)dateOnly, feriadosBancarios?.ToHashSet()) ?? dateOnly;
         }
 
         /// <summary>
         /// Get the last month weekday for a given DateTime.
         /// </summary>
         /// <param name="dateOnly"></param>
-        /// <param name="FeriadosBancarios">List of Bank Holydays as not working days.</param>
+        /// <param name="feriadosBancarios">List of Bank Holydays as not working days.</param>
         /// <returns></returns>
-        public static DateOnly? LastWeekDay(this DateOnly? dateOnly, List<DateOnly>? FeriadosBancarios = null)
+        public static DateOnly? LastWeekDay(this DateOnly? dateOnly, HashSet<DateOnly>? feriadosBancarios = null)
         {
-            if (dateOnly is null) return null;
+            if (!dateOnly.HasValue)
+                return null;
 
-            while (
-                dateOnly?.DayOfWeek == DayOfWeek.Saturday
-                || dateOnly?.DayOfWeek == DayOfWeek.Sunday
-                || (FeriadosBancarios is not null && FeriadosBancarios.Contains(dateOnly!.Value)))
+            DateOnly result = dateOnly.Value;
+
+            while (true)
             {
-                dateOnly = dateOnly?.AddDays(-1);
+                // Usa o switch para tratar diretamente os fins de semana e minimizar iterações.
+                switch (result.DayOfWeek)
+                {
+                    case DayOfWeek.Sunday:
+                        // Se é domingo, sabemos que o dia anterior (sábado) também é fim de semana,
+                        // assim podemos descer direto para sexta-feira.
+                        result = result.AddDays(-2);
+                        continue;
+
+                    case DayOfWeek.Saturday:
+                        // Se é sábado, apenas subtrai um dia para chegar à sexta.
+                        result = result.AddDays(-1);
+                        continue;
+                }
+
+                // Se a data for feriado, subtrai um dia e reavalia.
+                if (feriadosBancarios != null && feriadosBancarios.Contains(result))
+                {
+                    result = result.AddDays(-1);
+                    continue;
+                }
+
+                // Se não for final de semana nem feriado, a data é considerada válida.
+                break;
             }
 
             return dateOnly;
@@ -141,11 +210,33 @@ namespace MyExtensions
         /// Get the last month weekday for a given DateTime.
         /// </summary>
         /// <param name="dateOnly"></param>
-        /// <param name="FeriadosBancarios">List of Bank Holydays as not working days.</param>
+        /// <param name="feriadosBancarios">List of Bank Holydays as not working days.</param>
         /// <returns></returns>
-        public static DateOnly LastWeekDay(this DateOnly dateOnly, List<DateOnly>? FeriadosBancarios = null)
+        public static DateOnly? LastWeekDay(this DateOnly? dateOnly, IList<DateOnly>? feriadosBancarios = null)
         {
-            return LastWeekDay((DateOnly?)dateOnly, FeriadosBancarios) ?? dateOnly;
+            return LastWeekDay(dateOnly, feriadosBancarios?.ToHashSet()) ?? dateOnly;
+        }
+
+        /// <summary>
+        /// Get the last month weekday for a given DateTime.
+        /// </summary>
+        /// <param name="dateOnly"></param>
+        /// <param name="feriadosBancarios">List of Bank Holydays as not working days.</param>
+        /// <returns></returns>
+        public static DateOnly LastWeekDay(this DateOnly dateOnly, HashSet<DateOnly>? feriadosBancarios = null)
+        {
+            return LastWeekDay((DateOnly?)dateOnly, feriadosBancarios) ?? dateOnly;
+        }
+
+        /// <summary>
+        /// Get the last month weekday for a given DateTime.
+        /// </summary>
+        /// <param name="dateOnly"></param>
+        /// <param name="feriadosBancarios">List of Bank Holydays as not working days.</param>
+        /// <returns></returns>
+        public static DateOnly LastWeekDay(this DateOnly dateOnly, IList<DateOnly>? feriadosBancarios = null)
+        {
+            return LastWeekDay((DateOnly?)dateOnly, feriadosBancarios?.ToHashSet()) ?? dateOnly;
         }
 
         /// <summary>
