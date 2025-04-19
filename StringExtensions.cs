@@ -199,5 +199,54 @@ namespace MyExtensions
             return Encoding.UTF8.GetString(utf8Bytes);
         }
 
+        /// <summary>
+        /// Converts a string to a ReadOnlySpan of bytes.
+        /// </summary>
+        /// <param name="text"></param>
+        /// <param name="size"></param>
+        /// <returns></returns>
+        public static byte[] ToBytesArray(this ReadOnlySpan<char> text, int size = 0)
+        { 
+            int _length = (size == 0) ? text.Length : Math.Min(size, text.Length);
+
+
+            if (_length > 1024)
+            {
+                byte[] _bytes = new byte[_length];
+                for (int i = 0; i < _length; i++)
+                {
+                    char c = text[i];
+                    
+                    if (c >= '0' && c <= '9')
+                    {
+                        _bytes[i] = (byte)(c - '0');
+                    }
+                    else
+                    {
+                        _ = byte.TryParse(text.Slice(i, 1), out _bytes[i]);
+                    }
+                }
+                return _bytes; 
+            }
+            else
+            {
+                Span<byte> _bytes = stackalloc byte[_length];
+                for (int i = 0; i < _length; i++)
+                {
+                    char c = text[i];
+                    if (c >= '0' && c <= '9')
+                    {
+                        _bytes[i] = (byte)(c - '0');
+                    }
+                    else
+                    {
+                        _ = byte.TryParse(text.Slice(i, 1), out _bytes[i]);
+                    }
+                }
+
+                return _bytes.ToArray();
+            }
+        }
+
     }
 }
