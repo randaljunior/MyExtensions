@@ -6,6 +6,13 @@ namespace MyExtensions
 {
     public static partial class IListExtensions
     {
+        /// <summary>
+        /// Replaces the first item in the list that matches the selector with the new item.
+        /// </summary>
+        /// <typeparam name="TSource"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="newItem"></param>
+        /// <param name="selector"></param>
         public static void ReplaceItem<TSource>(this IList<TSource> list, TSource newItem, Func<TSource, bool> selector)
         {
             ArgumentNullException.ThrowIfNull(list);

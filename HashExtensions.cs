@@ -7,6 +7,11 @@ namespace MyExtensions
 {
     public static partial class HashExtensions
     {
+        /// <summary>
+        /// Computes the SHA512 hash of the input string and returns it as a hexadecimal string.
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
         public static string ComputeHashSHA512(this string input)
         {
             ArgumentNullException.ThrowIfNull(input);
@@ -14,6 +19,11 @@ namespace MyExtensions
             return Helpers.ByteArrayToHexViaLookup32(hash);
         }
 
+        /// <summary>
+        /// Computes the SHA256 hash of the input string and returns it as a hexadecimal string.
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
         public static string ComputeHashSHA1(this string input)
         {
             ArgumentNullException.ThrowIfNull(input);
@@ -39,6 +49,11 @@ namespace MyExtensions
             return lookup;
         }
 
+        /// <summary>
+        /// Converts a byte array to a hexadecimal string using a lookup table for performance.
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <returns></returns>
         internal static string ByteArrayToHexViaLookup32(Span<byte> bytes)
         {
             Span<char> result =

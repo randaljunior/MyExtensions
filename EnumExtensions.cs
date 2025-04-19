@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace MyExtensions;
 
 
+/// <summary>
+/// Attribute to provide a description for enum values.
+/// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Enum, Inherited = false, AllowMultiple = false)]
 public sealed class DescriptionAttribute : Attribute
 {
@@ -21,58 +25,135 @@ public sealed class DescriptionAttribute : Attribute
 
 public static partial class EnumExtensions
 {
-    public static T? ToEnum<T>(this ReadOnlySpan<char> _string, char separator = default) where T : notnull, Enum, new()
+    /// <summary>
+    /// Converts a string to an enum value, using the description attribute if available.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="input"></param>
+    /// <param name="separator"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public static T? ToEnum<T>(this ReadOnlySpan<char> input, char separator = default)
+    where T : notnull, Enum, new()
     {
-        Dictionary<string, T> EnumFields = new();
-
+        // Validação do tipo
         var type = typeof(T);
-        if (!type.IsEnum) throw new ArgumentException("T deve ser um tipo enum.");
+        if (!type.IsEnum)
+            throw new ArgumentException("T deve ser um tipo enum.", nameof(T));
 
-        bool hasFlagsAttribute = type.GetCustomAttributes(typeof(FlagsAttribute), false).Length > 0;
-
+        // Cria um dicionário com comparação case-insensitive para mapear as descrições para os valores do enum.
+        var enumFields = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
+        foreach (T enumValue in Enum.GetValues(type))
         {
-            var _values = Enum.GetValues(typeof(T));
-
-            foreach (var enumValue in _values)
+            var field = type.GetField(enumValue.ToString());
+            var attribute = field?.GetCustomAttribute<DescriptionAttribute>();
+            if (attribute is not null)
             {
-                var field = typeof(T).GetField(enumValue.ToString()!);
-                var attribute = field?.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault() as DescriptionAttribute;
-                if (attribute is not null)
-                {
-                    EnumFields.TryAdd(attribute.Description.ToLower(), (T)enumValue);
-                }
+                enumFields.TryAdd(attribute.Description, enumValue);
             }
         }
 
-        MemoryExtensions.SpanSplitEnumerator<char> scopeList;
+        // Determina se o enum possui o atributo [Flags]
+        bool hasFlags = type.IsDefined(typeof(FlagsAttribute), false);
 
-        if (separator != default)
-            scopeList = _string.Split(separator);
-        else
-            scopeList = _string.SplitAny(',', ' ');
+        // Se um separador for especificado, utiliza-o; caso contrário, divide a entrada por vírgula e espaço.
+        var tokens = separator != default ? input.Split(separator) : input.SplitAny(',', ' ');
 
-        if (hasFlagsAttribute)
+        if (hasFlags)
         {
-            T scopeEnum = new();
+            // Para enums com Flags, acumula os valores usando operações bit a bit.
+            ulong combined = 0;
 
-            foreach (var srt in scopeList)
+            foreach (var token in tokens)
             {
-                var slice = _string[srt].Trim();
+                // Obtém o token e faz o trim dos espaços.
+                var trimmedToken = input[token].Trim();
+                if (trimmedToken.IsEmpty) continue;
 
-                if (EnumFields.ContainsKey(slice.ToString().ToLower()))
+                // Se o token corresponder a uma descrição mapeada, acumula seu valor.
+                if (enumFields.TryGetValue(trimmedToken.ToString(), out T? enumVal) && enumVal is not null)
                 {
-                    scopeEnum = (T)Enum.ToObject(type, ((ulong)(object)scopeEnum | (ulong)(object)EnumFields[slice.ToString().ToLower()]));
+                    combined |= Convert.ToUInt64(enumVal);
                 }
             }
-
-            return scopeEnum;
+            return (T)Enum.ToObject(type, combined);
         }
         else
         {
-            EnumFields.TryGetValue(scopeList.Current.ToString(), out var scopeEnum);
-            return scopeEnum;
+            // Para enums simples, usa o primeiro token não vazio.
+            foreach (var token in tokens)
+            {
+                var trimmedToken = input[token].Trim();
+                if (trimmedToken.IsEmpty) continue;
+
+                if (enumFields.TryGetValue(trimmedToken.ToString(), out T? result) && result is not null)
+                {
+                    return result;
+                }
+                else
+                {
+                    // Se não encontrar a descrição mapeada, retorna o valor padrão.
+                    return default;
+                }
+            }
+            return default;
         }
     }
+
+
+
+    //public static T? ToEnum<T>(this ReadOnlySpan<char> _string, char separator = default) where T : notnull, Enum, new()
+    //{
+    //    Dictionary<string, T> EnumFields = new();
+
+    //    var type = typeof(T);
+    //    if (!type.IsEnum) throw new ArgumentException("T deve ser um tipo enum.");
+
+    //    bool hasFlagsAttribute = type.GetCustomAttributes(typeof(FlagsAttribute), false).Length > 0;
+
+    //    {
+    //        var _values = Enum.GetValues(typeof(T));
+
+    //        foreach (var enumValue in _values)
+    //        {
+    //            var field = typeof(T).GetField(enumValue.ToString()!);
+    //            var attribute = field?.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault() as DescriptionAttribute;
+    //            if (attribute is not null)
+    //            {
+    //                EnumFields.TryAdd(attribute.Description.ToLower(), (T)enumValue);
+    //            }
+    //        }
+    //    }
+
+    //    MemoryExtensions.SpanSplitEnumerator<char> scopeList;
+
+    //    if (separator != default)
+    //        scopeList = _string.Split(separator);
+    //    else
+    //        scopeList = _string.SplitAny(',', ' ');
+
+    //    if (hasFlagsAttribute)
+    //    {
+    //        T scopeEnum = new();
+
+    //        foreach (var srt in scopeList)
+    //        {
+    //            var slice = _string[srt].Trim();
+
+    //            if (EnumFields.ContainsKey(slice.ToString().ToLower()))
+    //            {
+    //                scopeEnum = (T)Enum.ToObject(type, ((ulong)(object)scopeEnum | (ulong)(object)EnumFields[slice.ToString().ToLower()]));
+    //            }
+    //        }
+
+    //        return scopeEnum;
+    //    }
+    //    else
+    //    {
+    //        EnumFields.TryGetValue(scopeList.Current.ToString(), out var scopeEnum);
+    //        return scopeEnum;
+    //    }
+    //}
 
 
     //public static string GetDescription<T>(this T e) where T : IConvertible
@@ -101,26 +182,50 @@ public static partial class EnumExtensions
     //    return null;
     //}
 
+    /// <summary>
+    /// Gets the description of an enum value.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="delimiter"></param>
+    /// <returns></returns>
     public static string GetDescription(this Enum value, char delimiter = ' ')
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         var type = value.GetType();
-        bool hasFlagsAttribute = type.GetCustomAttributes(typeof(FlagsAttribute), false).Length > 0;
+        bool hasFlagsAttribute = type.IsDefined(typeof(FlagsAttribute), false);
 
         if (hasFlagsAttribute)
         {
-            var values = Enum.GetValues(type);
+            var numericValue = Convert.ToUInt64(value);
             var descriptions = new List<string>();
+            var values = Enum.GetValues(type);
 
             foreach (Enum enumValue in values)
             {
-                if (value.HasFlag(enumValue))
+                ulong flag = Convert.ToUInt64(enumValue);
+
+                // Para lidar com o caso em que o valor é zero:
+                if (flag == 0)
+                {
+                    if (numericValue == 0)
+                    {
+                        var field = type.GetField(enumValue.ToString());
+                        var attr = field?.GetCustomAttribute<DescriptionAttribute>();
+                        if (attr is not null)
+                        {
+                            descriptions.Add(attr.Description);
+                        }
+                    }
+                }
+                // Para valores diferentes de zero, verifica se o flag está presente
+                else if ((numericValue & flag) == flag)
                 {
                     var field = type.GetField(enumValue.ToString());
-
-                    var attribute = field?.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault() as DescriptionAttribute;
-                    if (attribute != null)
+                    var attr = field?.GetCustomAttribute<DescriptionAttribute>();
+                    if (attr is not null)
                     {
-                        descriptions.Add(attribute.Description);
+                        descriptions.Add(attr.Description);
                     }
                 }
             }
@@ -129,22 +234,21 @@ public static partial class EnumExtensions
         }
         else
         {
-            var field = value.GetType().GetField(value.ToString());
-            var attribute = field?.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault() as DescriptionAttribute;
-            return attribute == null ? value.ToString() : attribute.Description;
+            var field = type.GetField(value.ToString());
+            var attribute = field?.GetCustomAttribute<DescriptionAttribute>();
+            return (attribute is null) ? value.ToString() : attribute.Description;
         }
     }
 
-    public static Dictionary<T, string> EnumDict<T>(this Type value) where T : Enum
+    public static Dictionary<T, string> EnumDict<T>(this Type enumType) where T : Enum
     {
-        var _dict = new Dictionary<T, string>();
-        var _values = Enum.GetValues(value).Cast<T>();
+        ArgumentNullException.ThrowIfNull(enumType);
 
-        foreach (var item in _values)
-        {
-            _dict.Add(item, item.GetDescription());
-        }
+        if (enumType != typeof(T))
+            throw new ArgumentException("The provided type must match the generic type T.", nameof(enumType));
 
-        return _dict;
+        return Enum.GetValues(enumType)
+                   .Cast<T>()
+                   .ToDictionary(item => item, item => item.GetDescription());
     }
 }
