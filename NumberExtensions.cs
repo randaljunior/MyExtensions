@@ -39,6 +39,27 @@ public static class NumberExtensions
     }
 
     /// <summary>
+    /// Converts a ReadOnlySpan<char> to an integer. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
+    public static int? ToInt(this ReadOnlySpan<uint> numbers)
+    {
+        if (numbers.Length == 0 || numbers.Length > 10) return null;
+
+        int sum = 0;
+        int multiplier = 1;
+
+        for (int i = numbers.Length - 1; i >= 0; i--)
+        {
+            sum += (int)(numbers[i] * multiplier);
+            multiplier *= 10;
+        }
+
+        return sum;
+    }
+
+    /// <summary>
     /// Converts a ReadOnlySpan<uint> to an integer. Returns null if the conversion fails.
     /// </summary>
     /// <param name="text"></param>
@@ -116,6 +137,26 @@ public static class NumberExtensions
     public static long? ToLong(this ReadOnlySpan<char> text)
     {
         return (long.TryParse(text, out long result)) ? result : null;
+    }
+
+    /// <summary>
+    /// Converts a ReadOnlySpan<uint> to an long. Returns null if the conversion fails.
+    /// </summary>
+    /// <param name="numbers"></param>
+    /// <returns></returns>
+    public static long? ToLong(this ReadOnlySpan<uint> numbers)
+    {
+        if (numbers.Length == 0 || numbers.Length > 20) return null;
+
+        long result = 0;
+        long multiplier = 1;
+
+        for (int i = numbers.Length - 1; i >= 0; i--)
+        {
+            result += numbers[i] * multiplier;
+            multiplier *= 10;
+        }
+        return result;
     }
 
     /// <summary>
@@ -297,4 +338,27 @@ public static class NumberExtensions
 
         return buffer.Slice(0, index);
     }
+
+    /// <summary>
+    /// Return the individual digits of a string as a string.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <returns></returns>
+    public static string GetOnlyDigits(this ReadOnlySpan<char> source)
+    {
+        Span<char> buffer = new char[source.Length];
+
+        int index = 0;
+
+        foreach (char c in source)
+        {
+            if (char.IsDigit(c))
+            {
+                buffer[index++] = c ;
+            }
+        }
+
+        return buffer.Slice(0, index).ToString();
+    }
+
 }
