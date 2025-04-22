@@ -36,59 +36,64 @@ public static partial class EnumExtensions
     public static T? ToEnum<T>(this ReadOnlySpan<char> input, char separator = default)
     where T : notnull, Enum, new()
     {
+        if(input.IsEmpty || input.IsWhiteSpace())
+            return default;
+
+        var _trimmedInput = input.Trim();
+
         // Validação do tipo
-        var type = typeof(T);
-        if (!type.IsEnum)
+        var _type = typeof(T);
+        if (!_type.IsEnum)
             throw new ArgumentException("T deve ser um tipo enum.", nameof(T));
 
         // Cria um dicionário com comparação case-insensitive para mapear as descrições para os valores do enum.
-        var enumFields = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
-        foreach (T enumValue in Enum.GetValues(type))
+        var _enumFields = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
+        foreach (T enumValue in Enum.GetValues(_type))
         {
-            var field = type.GetField(enumValue.ToString());
-            var attribute = field?.GetCustomAttribute<DescriptionAttribute>();
-            if (attribute is not null)
+            var _field = _type.GetField(enumValue.ToString());
+            var _attribute = _field?.GetCustomAttribute<DescriptionAttribute>();
+            if (_attribute is not null)
             {
-                enumFields.TryAdd(attribute.Description, enumValue);
+                _enumFields.TryAdd(_attribute.Description, enumValue);
             }
         }
 
         // Determina se o enum possui o atributo [Flags]
-        bool hasFlags = type.IsDefined(typeof(FlagsAttribute), false);
+        bool _hasFlags = _type.IsDefined(typeof(FlagsAttribute), false);
 
         // Se um separador for especificado, utiliza-o; caso contrário, divide a entrada por vírgula e espaço.
-        var tokens = separator != default ? input.Split(separator) : input.SplitAny(',', ' ');
+        var _tokens = separator != default ? _trimmedInput.Split(separator) : _trimmedInput.SplitAny(',', ' ');
 
-        if (hasFlags)
+        if (_hasFlags)
         {
             // Para enums com Flags, acumula os valores usando operações bit a bit.
-            ulong combined = 0;
+            ulong _combined = 0;
 
-            foreach (var token in tokens)
+            foreach (var _token in _tokens)
             {
                 // Obtém o token e faz o trim dos espaços.
-                var trimmedToken = input[token].Trim();
-                if (trimmedToken.IsEmpty) continue;
+                var _trimmedToken = _trimmedInput[_token].Trim();
+                if (_trimmedToken.IsEmpty) continue;
 
                 // Se o token corresponder a uma descrição mapeada, acumula seu valor.
-                if (enumFields.TryGetValue(trimmedToken.ToString(), out T? enumVal) && enumVal is not null)
+                if (_enumFields.TryGetValue(_trimmedToken.ToString(), out T? _enumVal) && _enumVal is not null)
                 {
-                    combined |= Convert.ToUInt64(enumVal);
+                    _combined |= Convert.ToUInt64(_enumVal);
                 }
             }
-            return (T)Enum.ToObject(type, combined);
+            return (T)Enum.ToObject(_type, _combined);
         }
         else
         {
             // Para enums simples, usa o primeiro token não vazio.
-            foreach (var token in tokens)
+            foreach (var _token in _tokens)
             {
-                var trimmedToken = input[token].Trim();
-                if (trimmedToken.IsEmpty) continue;
+                var _trimmedToken = _trimmedInput[_token].Trim();
+                if (_trimmedToken.IsEmpty) continue;
 
-                if (enumFields.TryGetValue(trimmedToken.ToString(), out T? result) && result is not null)
+                if (_enumFields.TryGetValue(_trimmedToken.ToString(), out T? _result) && _result is not null)
                 {
-                    return result;
+                    return _result;
                 }
                 else
                 {
