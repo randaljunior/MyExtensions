@@ -36,17 +36,16 @@ namespace MyExtensions
 
     public static class Helpers
     {
-        private static readonly uint[] Lookup32 = CreateLookup32();
+        private static uint[]? _lookup32;
 
-        private static uint[] CreateLookup32()
+        private static void CreateLookup32()
         {
-            var lookup = new uint[256];
+            _lookup32 = new uint[256];
             for (int i = 0; i < 256; i++)
             {
                 string s = i.ToString("X2");
-                lookup[i] = ((uint)s[0]) + ((uint)s[1] << 16);
+                _lookup32[i] = ((uint)s[0]) + ((uint)s[1] << 16);
             }
-            return lookup;
         }
 
         /// <summary>
@@ -56,6 +55,8 @@ namespace MyExtensions
         /// <returns></returns>
         internal static string ByteArrayToHexViaLookup32(Span<byte> bytes)
         {
+            if (_lookup32 is null) CreateLookup32();
+
             Span<char> result =
                 (bytes.Length * 2) <= 1024
                     ? stackalloc char[bytes.Length * 2]
@@ -63,7 +64,7 @@ namespace MyExtensions
 
             for (int i = 0; i < bytes.Length; i++)
             {
-                var val = Lookup32[bytes[i]];
+                var val = _lookup32[bytes[i]];
                 result[2 * i] = (char)val;
                 result[2 * i + 1] = (char)(val >> 16);
             }
