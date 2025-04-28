@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Frozen;
+using System.Collections.ObjectModel;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Unicode;
+using System.Web;
 
 namespace MyExtensions
 {
@@ -56,7 +59,6 @@ namespace MyExtensions
                 }
             });
         }
-
 
         /// <summary>
         /// Repeat a char n times.
@@ -146,6 +148,84 @@ namespace MyExtensions
         }
 
         /// <summary>
+        /// Replace tokens in a string using a dictionary.
+        /// </summary>
+        /// <param name="text"></param>
+        /// <param name="tokenBegin"></param>
+        /// <param name="tokenEnd"></param>
+        /// <param name="replacementTokens"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public static string ReplaceTokens(
+            this ReadOnlySpan<char> text,
+            char tokenBegin,
+            char tokenEnd,
+            FrozenDictionary<string, string> replacementTokens)
+        {
+            if (text.IsEmpty || text.IsWhiteSpace())
+                return text.ToString();
+
+            if (replacementTokens == null || replacementTokens.Count == 0)
+                return text.ToString();
+
+            if (!text.Contains(tokenBegin) || !text.Contains(tokenEnd))
+                return text.ToString();
+
+            var path = text.Slice(0);
+
+            var sb = new StringBuilder(path.Length);
+
+            while (true)
+            {
+                int indexBegin = path.IndexOf('{');
+
+                if (indexBegin < 0)
+                {
+                    sb.Append(path);
+                    break;
+                }
+
+                sb.Append(path.Slice(0, indexBegin - 1));
+
+                int indexEnd = path.IndexOf('}');
+                if (indexEnd < 0)
+                    throw new ArgumentException("Uri mal formada. Não encontrado tokenEnd no fim da substituição.");
+
+                var tokenName = path.Slice(indexBegin + 1, indexEnd - 1 - indexBegin);
+
+                if (replacementTokens.TryGetValue(tokenName.ToString(), out var token))
+                {
+                    sb.Append(HttpUtility.UrlEncode(token));
+                }
+                else
+                {
+                    sb.Append(path.Slice(indexBegin, indexEnd - indexBegin));
+                }
+
+                path = path.Slice(indexEnd + 1);
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Replace tokens in a string using a dictionary.
+        /// </summary>
+        /// <param name="text"></param>
+        /// <param name="tokenBegin"></param>
+        /// <param name="tokenEnd"></param>
+        /// <param name="replacementTokens"></param>
+        /// <returns></returns>
+        public static string ReplaceTokens(
+            this string text,
+            char tokenBegin,
+            char tokenEnd,
+            FrozenDictionary<string, string> replacementTokens)
+        {
+            return text.AsSpan().ReplaceTokens(tokenBegin, tokenEnd, replacementTokens);
+        }
+
+        /// <summary>
         /// Converts a string to hexadecimal using UTF-8 encoding.
         /// </summary>
         /// <param name="value"></param>
@@ -206,7 +286,7 @@ namespace MyExtensions
         /// <param name="size"></param>
         /// <returns></returns>
         public static byte[] ToBytesArray(this ReadOnlySpan<char> text, int size = 0)
-        { 
+        {
             int _length = (size == 0) ? text.Length : Math.Min(size, text.Length);
 
 
@@ -216,7 +296,7 @@ namespace MyExtensions
                 for (int i = 0; i < _length; i++)
                 {
                     char c = text[i];
-                    
+
                     if (c >= '0' && c <= '9')
                     {
                         _bytes[i] = (byte)(c - '0');
@@ -226,7 +306,7 @@ namespace MyExtensions
                         _ = byte.TryParse(text.Slice(i, 1), out _bytes[i]);
                     }
                 }
-                return _bytes; 
+                return _bytes;
             }
             else
             {
