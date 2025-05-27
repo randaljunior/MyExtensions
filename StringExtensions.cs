@@ -267,7 +267,10 @@ namespace MyExtensions
             }
 
             // Aloca espaço para os bytes na pilha
-            Span<byte> utf8Bytes = stackalloc byte[hexInput.Length / 2];
+            Span<byte> utf8Bytes =
+                (hexInput.Length / 2 < 1024)
+                ? stackalloc byte[hexInput.Length / 2]
+                : new byte[hexInput.Length / 2];
 
             // Converte o hexadecimal em bytes
             for (int i = 0; i < utf8Bytes.Length; i++)
@@ -293,6 +296,7 @@ namespace MyExtensions
             if (_length > 1024)
             {
                 byte[] _bytes = new byte[_length];
+
                 for (int i = 0; i < _length; i++)
                 {
                     char c = text[i];
@@ -306,11 +310,13 @@ namespace MyExtensions
                         _ = byte.TryParse(text.Slice(i, 1), out _bytes[i]);
                     }
                 }
+
                 return _bytes;
             }
             else
             {
                 Span<byte> _bytes = stackalloc byte[_length];
+
                 for (int i = 0; i < _length; i++)
                 {
                     char c = text[i];
