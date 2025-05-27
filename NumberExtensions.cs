@@ -354,7 +354,7 @@ public static class NumberExtensions
         {
             if (char.IsDigit(c))
             {
-                buffer[index++] = c ;
+                buffer[index++] = c;
             }
         }
 
