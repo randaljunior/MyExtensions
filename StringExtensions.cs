@@ -29,6 +29,17 @@ public static class StringExtensions
     }
 
     /// <summary>
+    /// Returns a default value if the string is null.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="defaultValue"></param>
+    /// <returns></returns>
+    public static string IfNull(this string? value, string defaultValue = "")
+    {
+        return value ?? defaultValue!;
+    }
+
+    /// <summary>
     /// Repeat a string n times.
     /// </summary>
     /// <param name="value"></param>
@@ -255,6 +266,11 @@ public static class StringExtensions
     }
 
     // TODO: Melhorar a conversão de hexadecimal para UTF-8
+    /// <summary>
+    /// Converts a hexadecial to a string using UTF-8 encoding.
+    /// </summary>
+    /// <param name="input"></param>
+    /// <returns></returns>
     public static string HexToUtf8(this ReadOnlySpan<char> hexInput)
     {
         // Valida o comprimento do hexadecimal (deve ser par)
