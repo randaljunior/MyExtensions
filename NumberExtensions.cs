@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace MyExtensions;
 
 public static class NumberExtensions
@@ -59,7 +61,7 @@ public static class NumberExtensions
     /// </summary>
     /// <param name="text"></param>
     /// <returns></returns>
-    public static uint? ToUint(this string text)
+    public static uint? ToUint([DisallowNull] this string text)
     {
         return text.AsSpan().ToUint();
     }
@@ -69,7 +71,7 @@ public static class NumberExtensions
     /// </summary>
     /// <param name="text"></param>
     /// <returns></returns>
-    public static uint? ToUint(this char text)
+    public static uint? ToUint([DisallowNull] this char text)
     {
         return text.ToUint();
     }
@@ -109,7 +111,7 @@ public static class NumberExtensions
     /// </summary>
     /// <param name="text"></param>
     /// <returns></returns>
-    public static long? ToLong(this string text)
+    public static long? ToLong([DisallowNull] this string text)
     {
         return text.AsSpan().ToLong();
     }
@@ -159,7 +161,7 @@ public static class NumberExtensions
     /// </summary>
     /// <param name="text"></param>
     /// <returns></returns>
-    public static ulong? ToUlong(this string text)
+    public static ulong? ToUlong([DisallowNull] this string text)
     {
         return text.AsSpan().ToUlong();
     }

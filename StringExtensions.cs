@@ -1,4 +1,7 @@
-﻿using System.Collections.Frozen;
+﻿using System.Buffers;
+using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -34,7 +37,7 @@ public static class StringExtensions
     /// <param name="value"></param>
     /// <param name="defaultValue"></param>
     /// <returns></returns>
-    public static string IfNull(this string? value, string defaultValue = "")
+    public static string IfNull(this string? value, [DisallowNull] string defaultValue = "")
     {
         return value ?? defaultValue!;
     }
@@ -45,7 +48,7 @@ public static class StringExtensions
     /// <param name="value"></param>
     /// <param name="ntimes"></param>
     /// <returns></returns>
-    public static string Repeat(this string value, int ntimes)
+    public static string Repeat([DisallowNull] this string value, int ntimes)
     {
         if (string.IsNullOrEmpty(value) || ntimes <= 0)
             return string.Empty;
@@ -74,7 +77,7 @@ public static class StringExtensions
     /// <param name="value"></param>
     /// <param name="ntimes"></param>
     /// <returns></returns>
-    public static string Repeat(this char value, int ntimes)
+    public static string Repeat([DisallowNull] this char value, int ntimes)
     {
         if (ntimes <= 0 || value == default)
             return string.Empty;
@@ -149,7 +152,10 @@ public static class StringExtensions
     /// <param name="regexOldString"></param>
     /// <param name="newString"></param>
     /// <returns></returns>
-    public static string RegexReplace(this string value, string regexOldString, string newString)
+    public static string RegexReplace(
+        [DisallowNull] this string value, 
+        [StringSyntax("Regex")] string regexOldString,
+        [DisallowNull] string newString)
     {
         var rgx = new Regex(regexOldString);
         return rgx.Replace(value, newString);
@@ -166,8 +172,8 @@ public static class StringExtensions
     /// <exception cref="ArgumentException"></exception>
     public static string ReplaceTokens(
         this ReadOnlySpan<char> text,
-        char tokenBegin,
-        char tokenEnd,
+        [DisallowNull] char tokenBegin,
+        [DisallowNull] char tokenEnd,
         FrozenDictionary<string, string> replacementTokens)
     {
         if (text.IsEmpty || text.IsWhiteSpace())
@@ -225,9 +231,9 @@ public static class StringExtensions
     /// <param name="replacementTokens"></param>
     /// <returns></returns>
     public static string ReplaceTokens(
-        this string text,
-        char tokenBegin,
-        char tokenEnd,
+        [DisallowNull] this string text,
+        [DisallowNull] char tokenBegin,
+        [DisallowNull] char tokenEnd,
         FrozenDictionary<string, string> replacementTokens)
     {
         return text.AsSpan().ReplaceTokens(tokenBegin, tokenEnd, replacementTokens);
@@ -345,6 +351,26 @@ public static class StringExtensions
 
             return _bytes.ToArray();
         }
+    }
+
+    /// <summary>
+    /// Converts a string to a ReadOnlySequence of characters.
+    /// </summary>
+    public static ReadOnlySequence<char> AsReadOnlySequence(this string input)
+    {
+        if (input == null) return ReadOnlySequence<char>.Empty;
+
+        // Zero allocations - usa diretamente a memória da string
+        return new ReadOnlySequence<char>(input.AsMemory());
+    }
+
+    /// <summary>
+    /// Converts a ReadOnlyMemory of characters to a ReadOnlySequence of characters.
+    /// </summary>
+    public static ReadOnlySequence<char> AsReadOnlySequence(this ReadOnlyMemory<char> input)
+    {
+        // Zero allocations - usa diretamente o ReadOnlyMemory
+        return new ReadOnlySequence<char>(input);
     }
 
 }
