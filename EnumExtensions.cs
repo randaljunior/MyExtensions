@@ -25,6 +25,19 @@ public static partial class EnumExtensions
     /// <param name="input"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
+    public static T? ToEnum<T>(this string input, char separator = default)
+    where T : notnull, Enum, new()
+    {
+        return input.AsSpan().ToEnum<T>(separator);
+    }
+
+    /// <summary>
+    /// Converts a string to an enum value, using the description attribute if available.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="input"></param>
+    /// <param name="separator"></param>
+    /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     public static T? ToEnum<T>(this ReadOnlySpan<char> input, char separator = default)
     where T : notnull, Enum, new()
