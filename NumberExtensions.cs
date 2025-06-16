@@ -1,5 +1,6 @@
 ﻿
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 
 namespace MyExtensions;
 
@@ -358,4 +359,46 @@ public static class NumberExtensions
         return buffer.Slice(0, index).ToString();
     }
 
+    public static T Round<T>(this T value, int decimals = 0) where T : struct, IConvertible
+    {
+        if (value is double d)
+            return (T)Convert.ChangeType(Math.Round(d, decimals), typeof(T));
+        
+        if (value is decimal m)
+            return (T)Convert.ChangeType(Math.Round(m, decimals), typeof(T));
+        
+        if (value is float f)
+            return (T)Convert.ChangeType(Math.Round(f, decimals), typeof(T));
+
+        throw new NotSupportedException($"O tipo {typeof(T)} não é suportado para arredondamento.");
+    }
+
+    public static T RoundUp<T>(this T value, int decimals = 0) where T : struct, IConvertible
+    {
+        if (value is double d)
+            return (T)Convert.ChangeType(Math.Round(d, decimals, MidpointRounding.ToPositiveInfinity), typeof(T));
+        
+        if (value is decimal m)
+            return (T)Convert.ChangeType(Math.Round(m, decimals, MidpointRounding.ToPositiveInfinity), typeof(T));
+        
+        if (value is float f)
+            return (T)Convert.ChangeType(Math.Round(f, decimals, MidpointRounding.ToPositiveInfinity), typeof(T));
+
+        throw new NotSupportedException($"O tipo {typeof(T)} não é suportado para arredondamento.");
+    }
+
+    public static T RoundDown<T>(this T value, int decimals = 0) where T : struct, IConvertible
+    {
+        
+        if (value is double d)
+            return (T)Convert.ChangeType(Math.Round(d, decimals, MidpointRounding.ToNegativeInfinity), typeof(T));
+        
+        if (value is decimal m)
+            return (T)Convert.ChangeType(Math.Round(m, decimals, MidpointRounding.ToNegativeInfinity), typeof(T));
+        
+        if (value is float f)
+            return (T)Convert.ChangeType(Math.Round(f, decimals, MidpointRounding.ToNegativeInfinity), typeof(T));
+
+        throw new NotSupportedException($"O tipo {typeof(T)} não é suportado para arredondamento.");
+    }
 }
