@@ -81,7 +81,7 @@ public sealed class NumberJsonConverter<T> : JsonConverter<T>
         else if (typeof(T) == typeof(long))
             writer.WriteNumberValue(Unsafe.As<T, long>(ref value));
         else if (typeof(T) == typeof(decimal))
-            writer.WriteNumberValue(Unsafe.As<T, decimal>(ref value));
+            writer.WriteStringValue(Unsafe.As<T, decimal>(ref value).ToString(CultureInfo.InvariantCulture));
         else if (typeof(T) == typeof(double))
             writer.WriteNumberValue(Unsafe.As<T, double>(ref value));
         else if (typeof(T) == typeof(float))
