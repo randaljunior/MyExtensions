@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Buffers;
 
 namespace MyExtensions;
 
@@ -37,36 +38,61 @@ public sealed class BigIntegerJsonConverter : JsonConverter<BigInteger>
 public sealed class NumberJsonConverter<T> : JsonConverter<T>
     where T : struct, INumber<T>, IMinMaxValue<T>
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryParseFromReader(ref Utf8JsonReader reader, out T result)
+    {
+        // 1. Caminho feliz: o valor está contíguo na memória (99% dos casos)
+        if (!reader.HasValueSequence)
+        {
+            return TryParseSpan(reader.ValueSpan, out result);
+        }
+
+        // 2. Caminho fragmentado (raro)
+        var sequence = reader.ValueSequence;
+        if (sequence.Length > 64)
+        {
+            result = default;
+            return false;
+        }
+
+        // O buffer fica isolado neste escopo, o compilador permite!
+        Span<byte> buffer = stackalloc byte[64];
+        sequence.CopyTo(buffer);
+
+        return TryParseSpan(buffer[..(int)sequence.Length], out result);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryParseSpan(ReadOnlySpan<byte> utf8Span, out T result)
+    {
+        if (utf8Span.IsEmpty)
+        {
+            result = default;
+            return false;
+        }
+
+        // Converte os bytes UTF-8 para caracteres na Stack
+        Span<char> chars = stackalloc char[64];
+        int charCount = System.Text.Encoding.UTF8.GetChars(utf8Span, chars);
+
+        // Faz o parse final
+        return T.TryParse(chars[..charCount], CultureInfo.InvariantCulture, out result);
+    }
+
     public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        // 1. Caso o token seja um número (ex: 123.45)
         if (reader.TokenType == JsonTokenType.Number)
         {
-            // O GetDecimal() ainda é a forma mais precisa de ler o número bruto do JSON
-            // CreateSaturating faz o "clamp" (limita aos extremos do tipo T) sem lançar erro.
             return T.CreateSaturating(reader.GetDecimal());
         }
 
-        // 2. Caso o token seja uma string (ex: "999999999999")
         if (reader.TokenType == JsonTokenType.String)
         {
-            string? value = reader.GetString();
-            if (string.IsNullOrWhiteSpace(value))
-                return default;
-
-            // Tentamos converter para decimal primeiro para ter a maior amplitude possível
-            // Se o texto for um número maior que o decimal suporta, o decimal.TryParse falhará.
-            if (decimal.TryParse(value, CultureInfo.InvariantCulture, out decimal decimalValue))
-            {
-                return T.CreateSaturating(decimalValue);
-            }
-
-            // Fallback para números absurdamente gigantes (estilo BigInteger no JSON)
-            // T.Parse geralmente lança erro se estourar, então o TryParse + Saturating é o ideal.
-            if (T.TryParse(value, CultureInfo.InvariantCulture, out T result))
+            if (TryParseFromReader(ref reader, out T result))
             {
                 return result;
             }
+            return default;
         }
 
         throw new JsonException($"Token inesperado ({reader.TokenType}) ao tentar ler {typeof(T).Name}.");
@@ -74,8 +100,6 @@ public sealed class NumberJsonConverter<T> : JsonConverter<T>
 
     public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
     {
-        // Otimização de JIT: no .NET 10, esse typeof(T) é resolvido em tempo de compilação
-        // transformando isso em uma chamada direta sem custo de branching.
         if (typeof(T) == typeof(int))
             writer.WriteNumberValue(Unsafe.As<T, int>(ref value));
         else if (typeof(T) == typeof(long))
@@ -91,16 +115,78 @@ public sealed class NumberJsonConverter<T> : JsonConverter<T>
         else if (typeof(T) == typeof(byte))
             writer.WriteNumberValue(Unsafe.As<T, byte>(ref value));
         else
-        {
-            // Para qualquer outro tipo INumber (como BigInteger ou Half)
             writer.WriteNumberValue(decimal.CreateSaturating(value));
+    }
+
+    public override T ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (TryParseFromReader(ref reader, out T result))
+        {
+            return result;
+        }
+
+        throw new JsonException($"Não foi possível converter a chave do dicionário para {typeof(T).Name}.");
+    }
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+    {
+        Span<char> buffer = stackalloc char[64];
+        if (value.TryFormat(buffer, out int charsWritten, default, CultureInfo.InvariantCulture))
+        {
+            writer.WritePropertyName(buffer[..charsWritten]);
+        }
+        else
+        {
+            // Fallback seguro caso o TryFormat falhe (muito raro para números)
+            writer.WritePropertyName(value.ToString(null, CultureInfo.InvariantCulture));
         }
     }
 }
 
 public sealed class NullableNumberJsonConverter<T> : JsonConverter<T?>
-    where T : struct, IConvertible, IParsable<T>, ISpanParsable<T>, INumber<T>, IFormattable, IComparable<T>, IEquatable<T>
+    where T : struct, INumber<T>, IMinMaxValue<T>
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryParseFromReader(ref Utf8JsonReader reader, out T result)
+    {
+        // 1. Caminho feliz: o valor está contíguo na memória (99% dos casos)
+        if (!reader.HasValueSequence)
+        {
+            return TryParseSpan(reader.ValueSpan, out result);
+        }
+
+        // 2. Caminho fragmentado (raro)
+        var sequence = reader.ValueSequence;
+        if (sequence.Length > 64)
+        {
+            result = default;
+            return false;
+        }
+
+        // O buffer fica isolado neste escopo, o compilador permite!
+        Span<byte> buffer = stackalloc byte[64];
+        sequence.CopyTo(buffer);
+
+        return TryParseSpan(buffer[..(int)sequence.Length], out result);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryParseSpan(ReadOnlySpan<byte> utf8Span, out T result)
+    {
+        if (utf8Span.IsEmpty)
+        {
+            result = default;
+            return false;
+        }
+
+        // Converte os bytes UTF-8 para caracteres na Stack
+        Span<char> chars = stackalloc char[64];
+        int charCount = System.Text.Encoding.UTF8.GetChars(utf8Span, chars);
+
+        // Faz o parse final
+        return T.TryParse(chars[..charCount], CultureInfo.InvariantCulture, out result);
+    }
+
     public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Null)
@@ -108,16 +194,18 @@ public sealed class NullableNumberJsonConverter<T> : JsonConverter<T?>
 
         if (reader.TokenType == JsonTokenType.Number)
         {
-            return (T)Convert.ChangeType(reader.GetDecimal(), typeof(T), CultureInfo.InvariantCulture);
+            // OTIMIZAÇÃO: Removido o Convert.ChangeType (que causava boxing). 
+            // Usando CreateSaturating igual ao conversor não-nulo.
+            return T.CreateSaturating(reader.GetDecimal());
         }
-        else if (reader.TokenType == JsonTokenType.String)
-        {
-            var str = reader.GetString();
-            if (string.IsNullOrWhiteSpace(str))
-                return null;
 
-            _ = T.TryParse(str, CultureInfo.InvariantCulture, out T value);
-            return value;
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            if (TryParseFromReader(ref reader, out T result))
+            {
+                return result;
+            }
+            return null;
         }
 
         throw new JsonException($"Unexpected token {reader.TokenType} for type {typeof(T?)}.");
@@ -125,13 +213,61 @@ public sealed class NullableNumberJsonConverter<T> : JsonConverter<T?>
 
     public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options)
     {
-        if (value is null)
+        if (!value.HasValue)
         {
             writer.WriteNullValue();
+            return;
+        }
+
+        T val = value.Value;
+
+        // OTIMIZAÇÃO: Alinhado com o conversor principal para evitar alocação de string
+        // (exceto para decimal, que você definiu explicitamente como string no original)
+        if (typeof(T) == typeof(int))
+            writer.WriteNumberValue(Unsafe.As<T, int>(ref val));
+        else if (typeof(T) == typeof(long))
+            writer.WriteNumberValue(Unsafe.As<T, long>(ref val));
+        else if (typeof(T) == typeof(decimal))
+            writer.WriteStringValue(Unsafe.As<T, decimal>(ref val).ToString(CultureInfo.InvariantCulture));
+        else if (typeof(T) == typeof(double))
+            writer.WriteNumberValue(Unsafe.As<T, double>(ref val));
+        else if (typeof(T) == typeof(float))
+            writer.WriteNumberValue(Unsafe.As<T, float>(ref val));
+        else if (typeof(T) == typeof(short))
+            writer.WriteNumberValue(Unsafe.As<T, short>(ref val));
+        else if (typeof(T) == typeof(byte))
+            writer.WriteNumberValue(Unsafe.As<T, byte>(ref val));
+        else
+            writer.WriteNumberValue(decimal.CreateSaturating(val));
+    }
+
+    public override T? ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (TryParseFromReader(ref reader, out T result))
+        {
+            return result;
+        }
+
+        throw new JsonException($"Não foi possível converter a chave do dicionário para {typeof(T?).Name}.");
+    }
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, T? value, JsonSerializerOptions options)
+    {
+        if (value.HasValue)
+        {
+            Span<char> buffer = stackalloc char[64];
+            if (value.Value.TryFormat(buffer, out int charsWritten, default, CultureInfo.InvariantCulture))
+            {
+                writer.WritePropertyName(buffer[..charsWritten]);
+            }
+            else
+            {
+                writer.WritePropertyName(value.Value.ToString(null, CultureInfo.InvariantCulture));
+            }
         }
         else
         {
-            writer.WriteStringValue(value.Value.ToString(null, CultureInfo.InvariantCulture));
+            writer.WritePropertyName(string.Empty);
         }
     }
 }

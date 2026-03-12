@@ -33,7 +33,7 @@ public sealed class DateOnlyJsonConverter : JsonConverter<DateOnly>
             return result;
 
         // 2. Fallback para yyyy-MM-dd HH:mm:ssZ
-        if (DateTime.TryParseExact(source, _fullFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateTime))
+        if (DateTime.TryParseExact(source, _fullFormat, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out var dateTime))
             return DateOnly.FromDateTime(dateTime);
 
         return default;
@@ -105,7 +105,7 @@ public sealed class DateOnlyNullableJsonConverter : JsonConverter<DateOnly?>
             return result;
 
         // 2. Fallback para formato longo (yyyy-MM-dd HH:mm:ssZ)
-        if (DateTime.TryParseExact(source, _fullFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateTime))
+        if (DateTime.TryParseExact(source, _fullFormat, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out var dateTime))
             return DateOnly.FromDateTime(dateTime);
 
         return null;
