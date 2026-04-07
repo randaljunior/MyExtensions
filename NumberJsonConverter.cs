@@ -105,7 +105,21 @@ public sealed class NumberJsonConverter<T> : JsonConverter<T>
         else if (typeof(T) == typeof(long))
             writer.WriteNumberValue(Unsafe.As<T, long>(ref value));
         else if (typeof(T) == typeof(decimal))
-            writer.WriteStringValue(Unsafe.As<T, decimal>(ref value).ToString(CultureInfo.InvariantCulture));
+        {
+            decimal decValue = Unsafe.As<T, decimal>(ref value);
+            double asDouble = (double)decValue;
+
+            // Limite de segurança um pouco menor que decimal.MaxValue para evitar OverflowException.
+            // O decimal.MaxValue é aprox. 7.922816E+28. Se o double arredondar para cima, 
+            // o cast (decimal)asDouble pode falhar.
+            const double safeMax = 7.922816251426433E+28d;
+
+            // Verifica se está dentro dos limites seguros e se não há perda de precisão
+            if (asDouble > -safeMax && asDouble < safeMax && (decimal)asDouble == decValue)
+                writer.WriteNumberValue(decValue);
+            else
+                writer.WriteStringValue(decValue.ToString(CultureInfo.InvariantCulture));
+        }
         else if (typeof(T) == typeof(double))
             writer.WriteNumberValue(Unsafe.As<T, double>(ref value));
         else if (typeof(T) == typeof(float))

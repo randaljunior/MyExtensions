@@ -7,7 +7,7 @@ public sealed class EnumSpaceSpaceJsonConverter<T> : JsonConverter<T> where T : 
 {
     public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var _str = reader.GetString()?.Trim();
+        var _str = reader.GetString()?.Trim().Normalize();
 
         if (_str.IsNullOrEmpty())
             return default;
@@ -25,7 +25,7 @@ public sealed class EnumCommaJsonConverter<T> : JsonConverter<T> where T : struc
 {
     public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var _str = reader.GetString()?.Trim();
+        var _str = reader.GetString()?.Trim().Normalize();
 
         if (_str.IsNullOrEmpty())
             return default;
@@ -57,7 +57,7 @@ public sealed class EnumArrayJsonConverter<T> : JsonConverter<T> where T : struc
 
             if (reader.TokenType == JsonTokenType.String)
             {
-                valores.Add(reader.GetString()!);
+                valores.Add(reader.GetString()!.Normalize());
                 continue;
             }
 
@@ -86,7 +86,7 @@ public sealed class EnumArrayJsonConverter<T> : JsonConverter<T> where T : struc
 
     public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
     {
-        var span = value.GetDescription(',').AsSpan();
+        var span = value.GetDescription(',').Normalize().AsSpan();
         var descricoes = span.Split(',');
 
         writer.WriteStartArray();
