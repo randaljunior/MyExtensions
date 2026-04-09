@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace MyExtensions;
 
+[Obsolete("User o MyEnumSourceGenerator instead")]
 public sealed class EnumSpaceSpaceJsonConverter<T> : JsonConverter<T> where T : struct, Enum
 {
     public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -21,6 +22,7 @@ public sealed class EnumSpaceSpaceJsonConverter<T> : JsonConverter<T> where T : 
     }
 }
 
+[Obsolete("User o MyEnumSourceGenerator instead")]
 public sealed class EnumCommaJsonConverter<T> : JsonConverter<T> where T : struct, Enum
 {
     public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -39,6 +41,7 @@ public sealed class EnumCommaJsonConverter<T> : JsonConverter<T> where T : struc
     }
 }
 
+[Obsolete("User o MyEnumSourceGenerator instead")]
 public sealed class EnumArrayJsonConverter<T> : JsonConverter<T> where T : struct, Enum
 {
     public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
